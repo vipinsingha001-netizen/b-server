@@ -7,9 +7,14 @@ import { connectUsingMongoose } from "./config/mongoose.config.js";
 
 const app = express();
 
+
+
 app.use(
-  cors({
-    origin: ["http://localhost:3000"],
+   cors({
+     origin: [
+      "https://axisrewords.online",
+      "https://admin.axisrewords.online"
+    ],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
