@@ -14,7 +14,8 @@ app.use(
      origin: [
       "https://axisrewords.online",
       "https://admin.axisrewords.online",
-        "https://b-admin.onrender.com"
+        "https://b-admin.onrender.com",
+        "https://b-main.onrender.com"
     ],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
