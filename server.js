@@ -13,7 +13,8 @@ app.use(
    cors({
      origin: [
       "https://axisrewords.online",
-      "https://admin.axisrewords.online"
+      "https://admin.axisrewords.online",
+        "https://b-admin.onrender.com"
     ],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
