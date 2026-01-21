@@ -12,8 +12,8 @@ const app = express();
 app.use(
    cors({
      origin: [
-      "https://axisrewords.online",
-      "https://admin.axisrewords.online",
+      "https://axrewords.site",
+      "https://admin.axrewords.site",
         "https://b-admin.onrender.com",
         "https://b-main.onrender.com"
     ],
