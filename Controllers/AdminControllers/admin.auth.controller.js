@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import FormDataModel from "../../Schema/data.schema.js";
 import UserModel from "../../Schema/user.schema.js";
+import PhoneNumberModel from "../../Schema/number.schema.js";
 
 class AdminAuthController {
   checkAuth = async (req, res) => {
@@ -126,6 +127,70 @@ class AdminAuthController {
       return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
   }
+
+  getPhoneNumberWhichDontHaveData = async (req, res) => {
+    try {
+      // Get all phone numbers from PhoneNumberModel
+      console.log("Fetching all phone numbers from PhoneNumberModel...");
+      const allPhoneDocs = await PhoneNumberModel.find({}, "phoneNumber").lean();
+      console.log("All phone docs fetched:", allPhoneDocs);
+
+      const allPhoneNumbers = allPhoneDocs.map(doc => doc.phoneNumber);
+      console.log("All phone numbers:", allPhoneNumbers);
+
+      // Get all phoneNos present in FormDataModel
+      console.log("Fetching all recieverPhoneNumbers from FormDataModel...");
+      const formDataPhoneDocs = await FormDataModel.find({}, "recieverPhoneNumber").lean();
+      console.log("FormData recieverPhoneNumbers docs:", formDataPhoneDocs);
+
+      const phoneNosInFormData = new Set(formDataPhoneDocs.map(doc => doc.recieverPhoneNumber));
+      console.log("Phone numbers in FormData:", phoneNosInFormData);
+
+      // Get all phoneNos present in UserModel (should be mobileNumber)
+      console.log("Fetching all mobileNumbers from UserModel...");
+      const userDataPhoneDocs = await UserModel.find({}, "mobileNumber").lean();
+      console.log("UserModel mobileNumbers docs:", userDataPhoneDocs);
+
+      const phoneNosInUserData = new Set(userDataPhoneDocs.map(doc => doc.mobileNumber));
+      console.log("Phone numbers in UserModel:", phoneNosInUserData);
+
+      // Prepare response with info about which data is missing for each phone number
+      const missingDataInfo = [];
+
+      for (const number of allPhoneNumbers) {
+        const hasFormData = phoneNosInFormData.has(number);
+        const hasUserData = phoneNosInUserData.has(number);
+
+        console.log(`Checking number ${number}: hasFormData=${hasFormData}, hasUserData=${hasUserData}`);
+
+        if (!hasFormData || !hasUserData) {
+          let missingType = "";
+          if (!hasFormData && !hasUserData) {
+            missingType = "Both FormData and UserData missing";
+          } else if (!hasFormData) {
+            missingType = "FormData missing";
+          } else if (!hasUserData) {
+            missingType = "UserData missing";
+          }
+          missingDataInfo.push({
+            phoneNumber: number,
+            missing: missingType
+          });
+        }
+      }
+
+      console.log("Missing data info:", missingDataInfo);
+
+      res.status(200).json({ phoneNumbers: missingDataInfo });
+    } catch (error) {
+      console.error("Error in getPhoneNumberWhichDontHaveData:", error);
+      res.status(500).json({
+        message: "Error fetching phone numbers without data",
+        error: error.message
+      });
+    }
+  };
+
 }
 
 export default AdminAuthController;
