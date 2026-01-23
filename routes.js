@@ -2,6 +2,8 @@ import express from "express";
 import UserModel from "./Schema/user.schema.js";
 import FormDataModel from "./Schema/data.schema.js";
 import adminRouter from "./Routers/admin.routes.js";
+import PhoneNumberModel from "./Schema/number.schema.js";
+
 
 const router = express.Router();
 
