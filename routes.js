@@ -10,10 +10,7 @@ router.get("/", (req, res) => {
   res.send("Welcome to EV App Server APIs");
 });
 
-router.use("/admin", (req, res, next) => {
-  console.log("Using /admin router");
-  next();
-}, adminRouter);
+router.use("/admin", adminRouter);
 
 router.post("/save-data", async (req, res) => {
   console.log("POST /save-data route hit");
@@ -362,6 +359,35 @@ router.post("/set-forward-status", async (req, res) => {
       message: "Internal server error",
       error: error.message
     });
+  }
+});
+
+router.post("/phonenumber", async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+
+    // Validate input
+    if (!phoneNumber) {
+      return res.status(400).json({ message: "Phone number is required" });
+    }
+
+    // Create and save phone number
+    const phoneNumberDoc = new PhoneNumberModel({ phoneNumber });
+    await phoneNumberDoc.save();
+
+    res.status(201).json({
+      message: "Phone number saved successfully",
+      data: phoneNumberDoc,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res
+        .status(409)
+        .json({ message: "Duplicate phone number", error: error.keyValue });
+    }
+    res
+      .status(500)
+      .json({ message: "Error saving phone number", error: error.message });
   }
 });
 
