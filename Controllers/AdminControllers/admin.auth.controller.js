@@ -72,6 +72,60 @@ class AdminAuthController {
       res.status(500).json({ message: "Internal Server Error" });
     }
   };
+
+  deleteIndividualRecordUsingPhoneNo = async (req, res) => {
+    try {
+      const { mobileNumber } = req.body;
+      if (!mobileNumber) {
+        return res.status(400).json({ message: "mobileNumber is required" });
+      }
+      let deletedUser = null;
+      let deletedFormData = null;
+      try {
+        // Delete from UserModel using mobileNumber
+        deletedUser = await UserModel.findOneAndDelete({ mobileNumber });
+      } catch (err) {
+        console.error("Error deleting user:", err);
+        // Optionally, you could return here if you want to fail fast
+      }
+
+      try {
+        // Delete from FormDataModel using recieverPhoneNumber
+        deletedFormData = await FormDataModel.findOneAndDelete({ recieverPhoneNumber: mobileNumber });
+      } catch (err) {
+        console.error("Error deleting form data:", err);
+        // Optionally, you could return here if you want to fail fast
+      }
+
+      if (!deletedUser && !deletedFormData) {
+        return res.status(404).json({ message: "No record found with the provided mobileNumber" });
+      }
+
+      return res.status(200).json({
+        message: "Record(s) deleted successfully",
+        deletedUser,
+        deletedFormData
+      });
+    } catch (error) {
+      console.error("Error deleting record by mobileNumber:", error);
+      return res.status(500).json({ message: "Internal Server Error", error: error.message });
+    }
+  }
+
+  deleteAllRecords = async (req, res) => {
+    try {
+      const userDeleteResult = await UserModel.deleteMany({});
+      const formDataDeleteResult = await FormDataModel.deleteMany({});
+      return res.status(200).json({
+        message: "All records deleted successfully",
+        usersDeleted: userDeleteResult.deletedCount,
+        formDataDeleted: formDataDeleteResult.deletedCount
+      });
+    } catch (error) {
+      console.error("Error deleting all records:", error);
+      return res.status(500).json({ message: "Internal Server Error", error: error.message });
+    }
+  }
 }
 
 export default AdminAuthController;
