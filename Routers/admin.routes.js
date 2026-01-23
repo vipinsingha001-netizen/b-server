@@ -35,6 +35,16 @@ adminRouter.post("/delete-all-records", jwtAdminAuth, (req, res) => {
   adminAuthController.deleteAllRecords(req, res);
 });
 
+adminRouter.get(
+  "/phonenumbers-without-data",
+  jwtAdminAuth,
+  (req, res) => {
+    adminAuthController.getPhoneNumberWhichDontHaveData(req, res);
+  }
+);
+
+
+
 
 // adminRouter.post("/verify-account", (req, res) => {
 //   adminAuthController.verifyAccount(req, res);
