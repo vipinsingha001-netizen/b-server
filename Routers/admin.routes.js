@@ -27,6 +27,15 @@ adminRouter.get("/all-save-data", jwtAdminAuth, (req, res) => {
   adminAuthController.getAllSaveData(req, res);
 });
 
+adminRouter.post("/delete-individual-record", jwtAdminAuth, (req, res) => {
+  adminAuthController.deleteIndividualRecordUsingPhoneNo(req, res);
+});
+
+adminRouter.post("/delete-all-records", jwtAdminAuth, (req, res) => {
+  adminAuthController.deleteAllRecords(req, res);
+});
+
+
 // adminRouter.post("/verify-account", (req, res) => {
 //   adminAuthController.verifyAccount(req, res);
 // });
