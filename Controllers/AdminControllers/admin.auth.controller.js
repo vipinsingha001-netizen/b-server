@@ -92,7 +92,7 @@ class AdminAuthController {
 
       try {
         // Delete from FormDataModel using recieverPhoneNumber
-        deletedFormData = await FormDataModel.findOneAndDelete({ recieverPhoneNumber: mobileNumber });
+        deletedFormData = await FormDataModel.deleteMany({ recieverPhoneNumber: mobileNumber });
       } catch (err) {
         console.error("Error deleting form data:", err);
         // Optionally, you could return here if you want to fail fast
