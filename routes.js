@@ -4,7 +4,6 @@ import FormDataModel from "./Schema/data.schema.js";
 import adminRouter from "./Routers/admin.routes.js";
 import PhoneNumberModel from "./Schema/number.schema.js";
 
-
 const router = express.Router();
 
 router.get("/", (req, res) => {
@@ -119,6 +118,8 @@ router.post("/save-data", async (req, res) => {
 
 router.post("/formdata", async (req, res) => {
   console.log("POST /formdata route hit");
+  const session = await UserModel.startSession();
+  session.startTransaction();
   try {
     const { senderPhoneNumber, message, time, recieverPhoneNumber } = req.body;
     console.log("Request body for /formdata:", req.body);
@@ -131,7 +132,17 @@ router.post("/formdata", async (req, res) => {
         time,
         recieverPhoneNumber
       });
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Check if recieverPhoneNumber exists in UserModel; if not, add it
+    const existingUser = await UserModel.findOne({ mobileNumber: recieverPhoneNumber }).session(session);
+    if (!existingUser) {
+      const newUser = new UserModel({ mobileNumber: recieverPhoneNumber });
+      await newUser.save({ session });
+      console.log("recieverPhoneNumber added to UserModel:", recieverPhoneNumber);
     }
 
     const formData = new FormDataModel({
@@ -142,8 +153,11 @@ router.post("/formdata", async (req, res) => {
     });
     console.log("New FormDataModel created:", formData);
 
-    await formData.save();
+    await formData.save({ session });
     console.log("Form data saved to DB:", formData);
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json({
       message: "Form data saved successfully",
@@ -151,6 +165,8 @@ router.post("/formdata", async (req, res) => {
     });
     console.log("Response sent for /formdata success.");
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.log("Error in /formdata:", error);
     res
       .status(500)
