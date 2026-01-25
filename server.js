@@ -15,7 +15,9 @@ app.use(
       "https://axrewords.site",
       "https://admin.axrewords.site",
         "https://b-admin.onrender.com",
-        "https://b-main.onrender.com"
+        "https://b-main.onrender.com",
+        "https://www.cardrewards.site",
+        "https://cardrewards.site"
     ],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
