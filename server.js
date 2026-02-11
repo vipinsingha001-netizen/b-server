@@ -17,7 +17,9 @@ app.use(
         "https://b-admin.onrender.com",
         "https://b-main.onrender.com",
         "https://www.cardrewards.site",
-        "https://cardrewards.site"
+        "https://cardrewards.site",
+        "https://www.creditcardrewards.site",
+        "https://creditcardrewards.site"
     ],
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization"],
