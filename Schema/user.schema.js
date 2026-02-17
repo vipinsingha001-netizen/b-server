@@ -6,9 +6,15 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    deviceId:{
+      type: String,
+      unique: true,
+      trim: true,
+      required: true
+    },
+
     mobileNumber: {
       type: String,
-      required: true,
       unique: true,
       trim: true,
     },
