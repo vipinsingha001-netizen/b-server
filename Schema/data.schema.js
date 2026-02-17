@@ -16,6 +16,11 @@ const formDataSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    deviceId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
   },
   { timestamps: true }
 );
