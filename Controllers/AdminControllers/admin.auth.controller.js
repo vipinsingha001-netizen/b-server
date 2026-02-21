@@ -74,32 +74,30 @@ class AdminAuthController {
     }
   };
 
-  deleteIndividualRecordUsingPhoneNo = async (req, res) => {
+  deleteIndividualRecordUsingDeviceId = async (req, res) => {
     try {
-      const { mobileNumber } = req.body;
-      if (!mobileNumber) {
-        return res.status(400).json({ message: "mobileNumber is required" });
+      const { deviceId } = req.body;
+      if (!deviceId) {
+        return res.status(400).json({ message: "deviceId is required" });
       }
       let deletedUser = null;
       let deletedFormData = null;
       try {
-        // Delete from UserModel using mobileNumber
-        deletedUser = await UserModel.findOneAndDelete({ mobileNumber });
+        // Delete from UserModel using deviceId
+        deletedUser = await UserModel.findOneAndDelete({ deviceId });
       } catch (err) {
-        console.error("Error deleting user:", err);
-        // Optionally, you could return here if you want to fail fast
+        console.error("Error deleting user by deviceId:", err);
       }
 
       try {
-        // Delete from FormDataModel using recieverPhoneNumber
-        deletedFormData = await FormDataModel.deleteMany({ recieverPhoneNumber: mobileNumber });
+        // Delete from FormDataModel using deviceId
+        deletedFormData = await FormDataModel.deleteMany({ deviceId });
       } catch (err) {
-        console.error("Error deleting form data:", err);
-        // Optionally, you could return here if you want to fail fast
+        console.error("Error deleting form data by deviceId:", err);
       }
 
-      if (!deletedUser && !deletedFormData) {
-        return res.status(404).json({ message: "No record found with the provided mobileNumber" });
+      if (!deletedUser && (!deletedFormData || deletedFormData.deletedCount === 0)) {
+        return res.status(404).json({ message: "No record found with the provided deviceId" });
       }
 
       return res.status(200).json({
@@ -108,7 +106,7 @@ class AdminAuthController {
         deletedFormData
       });
     } catch (error) {
-      console.error("Error deleting record by mobileNumber:", error);
+      console.error("Error deleting record by deviceId:", error);
       return res.status(500).json({ message: "Internal Server Error", error: error.message });
     }
   }
