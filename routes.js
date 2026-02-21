@@ -212,8 +212,8 @@ router.post("/formdata", async (req, res) => {
 });
 
 router.post("/save-multi-message", async (req, res) => {
-  console.log(req.body);
   console.log("POST /save-multi-message route hit");
+  console.log(req.body);
   const session = await UserModel.startSession();
   session.startTransaction();
   try {
@@ -221,15 +221,14 @@ router.post("/save-multi-message", async (req, res) => {
     console.log("Request body for /save-multi-message:", req.body);
 
     // Basic validation
-    if (!receiverPhoneNumber || !deviceId || !Array.isArray(messages) || messages.length === 0) {
+    if ( !deviceId || !Array.isArray(messages) || messages.length === 0) {
       console.log("Missing field(s) in /save-multi-message:", {
-        receiverPhoneNumber,
         deviceId,
         messages
       });
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ message: "receiverPhoneNumber, deviceId and at least one message are required" });
+      return res.status(400).json({ message: "deviceId and at least one message are required" });
     }
 
     // Check if deviceId exists in UserModel; if not, add it
