@@ -16,6 +16,8 @@ router.use("/admin", adminRouter);
 router.post("/save-data", async (req, res) => {
   console.log("Step 1: Received POST /save-data request");
 
+  console.log(req.body);
+
   try {
     let {
       deviceId, // deviceId REQUIRED
