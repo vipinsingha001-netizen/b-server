@@ -74,7 +74,7 @@ class AdminAuthController {
     }
   };
 
-  deleteIndividualRecordUsingDeviceId = async (req, res) => {
+  deleteIndividualRecordUsingPhoneNo = async (req, res) => {
     try {
       const { deviceId } = req.body;
       if (!deviceId) {
