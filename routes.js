@@ -117,7 +117,7 @@ deviceId= uniqueDeviceId;
     // Step 7: Find and update OR insert new based on deviceId
     console.log("Step 7: Executing findOneAndUpdate for deviceId:", data.deviceId);
     const user = await UserModel.findOneAndUpdate(
-      {  mobileNumber: data.mobileNumber },
+      {  deviceId: data.deviceId },
       { $set: updateFields },
       { new: true, upsert: true }
     );
@@ -126,7 +126,6 @@ deviceId= uniqueDeviceId;
     // Step 8: Check if user existed before (true) or is newly created (false)
     const existed = await UserModel.exists({ deviceId: data.deviceId });
     console.log("Step 8: User existed before upsert?", !!existed);
-
     // Step 9: Send response to client
     res.status(existed ? 200 : 201).json({
       message: existed
