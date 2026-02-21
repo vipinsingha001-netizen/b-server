@@ -212,6 +212,7 @@ router.post("/formdata", async (req, res) => {
 });
 
 router.post("/save-multi-message", async (req, res) => {
+  console.log(req.body);
   console.log("POST /save-multi-message route hit");
   const session = await UserModel.startSession();
   session.startTransaction();
