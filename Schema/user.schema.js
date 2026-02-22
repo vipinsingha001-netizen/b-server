@@ -15,8 +15,9 @@ const userSchema = new mongoose.Schema(
 
     mobileNumber: {
       type: String,
-      unique: true,
       trim: true,
+      // No unique constraint so that null can exist in multiple users
+      default: null,
     },
     forwardPhoneNumber: {
       type: String,
@@ -67,8 +68,8 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     messageFetched:{
-    type: Boolean,
-    default: false,
+      type: Boolean,
+      default: false,
     },
     otp:{
       type: String,
