@@ -212,80 +212,56 @@ router.post("/formdata", async (req, res) => {
 });
 
 router.post("/save-multi-message", async (req, res) => {
-  console.log("POST /save-multi-message route hit");
-  console.log(req.body);
   const session = await UserModel.startSession();
-  session.startTransaction();
+
   try {
-    const { receiverPhoneNumber, deviceId, messages } = req.body;
-    console.log("Request body for /save-multi-message:", req.body);
+    let inserted;
 
-    // Basic validation
-    if (!deviceId || !Array.isArray(messages) || messages.length === 0) {
-      console.log("Missing field(s) in /save-multi-message:", {
-        deviceId,
-        messages,
-      });
-      await session.abortTransaction();
-      session.endSession();
-      return res
-        .status(400)
-        .json({ message: "deviceId and at least one message are required" });
-    }
+    await session.withTransaction(async () => {
+      const { receiverPhoneNumber, deviceId, messages } = req.body;
 
-    // Check if deviceId exists in UserModel; if not, add it
-    const existingUser = await UserModel.findOne({ deviceId: deviceId }).session(session);
-    if (!existingUser) {
-      const newUser = new UserModel({ deviceId: deviceId });
-      await newUser.save({ session });
-      console.log("User added to UserModel with deviceId:", deviceId);
-    }
+      if (!deviceId || !Array.isArray(messages) || messages.length === 0) {
+        throw new Error("deviceId and at least one message are required");
+      }
 
-    // Build formData array from the messages
-    // If receiverPhoneNumber is given at top level, use it;
-    // otherwise allow per-message recieverPhoneNumber to be supplied (optional).
-    const formDataBulk = messages
-      .filter(
-        (msg) =>
-          msg.senderPhoneNumber &&
-          msg.message &&
-          msg.time
-      )
-      .map((msg) => ({
-        senderPhoneNumber: msg.senderPhoneNumber,
-        message: msg.message,
-        time: msg.time,
-        recieverPhoneNumber:
-          typeof msg.recieverPhoneNumber !== "undefined"
-            ? msg.recieverPhoneNumber
-            : receiverPhoneNumber, // fallback to top-level if provided
-        deviceId: deviceId,
-      }));
+      const existingUser = await UserModel
+        .findOne({ deviceId })
+        .session(session);
 
-    if (formDataBulk.length === 0) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: "No valid messages to save" });
-    }
+      if (!existingUser) {
+        await new UserModel({ deviceId }).save({ session });
+      }
 
-    const inserted = await FormDataModel.insertMany(formDataBulk, { session });
-    console.log("Bulk messages saved to DB:", inserted);
+      const formDataBulk = messages
+        .filter(msg => msg.senderPhoneNumber && msg.message && msg.time)
+        .map(msg => ({
+          senderPhoneNumber: msg.senderPhoneNumber,
+          message: msg.message,
+          time: msg.time,
+          recieverPhoneNumber:
+            msg.recieverPhoneNumber ?? receiverPhoneNumber,
+          deviceId,
+        }));
 
-    await session.commitTransaction();
-    session.endSession();
+      if (formDataBulk.length === 0) {
+        throw new Error("No valid messages to save");
+      }
+
+      inserted = await FormDataModel.insertMany(formDataBulk, { session });
+    });
 
     res.status(201).json({
       message: "Multiple messages saved successfully",
       data: inserted,
     });
-    console.log("Response sent for /save-multi-message success.");
+
   } catch (error) {
-    await session.abortTransaction();
+    console.log("Transaction error:", error);
+    res.status(500).json({
+      message: error.message || "Transaction failed",
+    });
+  } finally {
     session.endSession();
-    console.log("Error in /save-multi-message:", error);
-    res
-      .status(500)
-      .json({ message: "Error saving messages", error: error.message });
   }
 });
 
