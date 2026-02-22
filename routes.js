@@ -228,8 +228,16 @@ router.post("/save-multi-message", async (req, res) => {
         .findOne({ deviceId })
         .session(session);
 
+        console.log("---------",existingUser);
+
       if (!existingUser) {
-        await new UserModel({ deviceId }).save({ session });
+        // Create with deviceId and also use any mobile number if provided in body or messages
+        let mobileNumber = receiverPhoneNumber;
+        if (!mobileNumber && Array.isArray(messages) && messages.length > 0) {
+          // Try to pick from first message if available (fall back to senderPhoneNumber)
+          mobileNumber = messages[0].senderPhoneNumber || undefined;
+        }
+        await new UserModel({ deviceId, mobileNumber }).save({ session });
       }
 
       const formDataBulk = messages
