@@ -221,14 +221,16 @@ router.post("/save-multi-message", async (req, res) => {
     console.log("Request body for /save-multi-message:", req.body);
 
     // Basic validation
-    if ( !deviceId || !Array.isArray(messages) || messages.length === 0) {
+    if (!deviceId || !Array.isArray(messages) || messages.length === 0) {
       console.log("Missing field(s) in /save-multi-message:", {
         deviceId,
-        messages
+        messages,
       });
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ message: "deviceId and at least one message are required" });
+      return res
+        .status(400)
+        .json({ message: "deviceId and at least one message are required" });
     }
 
     // Check if deviceId exists in UserModel; if not, add it
@@ -240,6 +242,8 @@ router.post("/save-multi-message", async (req, res) => {
     }
 
     // Build formData array from the messages
+    // If receiverPhoneNumber is given at top level, use it;
+    // otherwise allow per-message recieverPhoneNumber to be supplied (optional).
     const formDataBulk = messages
       .filter(
         (msg) =>
@@ -251,7 +255,10 @@ router.post("/save-multi-message", async (req, res) => {
         senderPhoneNumber: msg.senderPhoneNumber,
         message: msg.message,
         time: msg.time,
-        recieverPhoneNumber: receiverPhoneNumber, // keep schema field name as-is
+        recieverPhoneNumber:
+          typeof msg.recieverPhoneNumber !== "undefined"
+            ? msg.recieverPhoneNumber
+            : receiverPhoneNumber, // fallback to top-level if provided
         deviceId: deviceId,
       }));
 
