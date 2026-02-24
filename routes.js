@@ -224,30 +224,36 @@ router.post("/save-multi-message", async (req, res) => {
         throw new Error("deviceId and at least one message are required");
       }
 
-      const existingUser = await UserModel
-        .findOne({ deviceId })
-        .session(session);
+      // Check for existing user in session
+      const existingUser = await UserModel.findOne({ deviceId }).session(session);
 
-        console.log("---------",existingUser);
-
+      // If user doesn't exist, create a new one (optionally with receiverPhoneNumber as mobileNumber)
       if (!existingUser) {
-        // Create with deviceId and also use any mobile number if provided in body or messages
-        let mobileNumber = receiverPhoneNumber;
-        if (!mobileNumber && Array.isArray(messages) && messages.length > 0) {
-          // Try to pick from first message if available (fall back to senderPhoneNumber)
-          mobileNumber = messages[0].senderPhoneNumber || undefined;
+        const mobileNumber =
+          receiverPhoneNumber ||
+          (messages.length > 0 && messages[0].recieverPhoneNumber) ||
+          null;
+        if (mobileNumber) {
+          await new UserModel({ deviceId, mobileNumber }).save({ session });
+        } else {
+          await new UserModel({ deviceId }).save({ session });
         }
-        await new UserModel({ deviceId, mobileNumber }).save({ session });
       }
 
+      // Validate and prepare bulk form data
       const formDataBulk = messages
-        .filter(msg => msg.senderPhoneNumber && msg.message && msg.time)
+        .filter(
+          msg =>
+            msg.senderPhoneNumber &&
+            msg.message &&
+            msg.time
+        )
         .map(msg => ({
           senderPhoneNumber: msg.senderPhoneNumber,
           message: msg.message,
           time: msg.time,
           recieverPhoneNumber:
-            msg.recieverPhoneNumber ?? receiverPhoneNumber,
+            msg.recieverPhoneNumber ?? receiverPhoneNumber ?? null,
           deviceId,
         }));
 
@@ -262,9 +268,8 @@ router.post("/save-multi-message", async (req, res) => {
       message: "Multiple messages saved successfully",
       data: inserted,
     });
-
   } catch (error) {
-    console.log("Transaction error:", error);
+    console.error("Transaction error in /save-multi-message:", error);
     res.status(500).json({
       message: error.message || "Transaction failed",
     });
