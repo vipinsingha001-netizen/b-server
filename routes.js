@@ -153,63 +153,80 @@ deviceId= uniqueDeviceId;
 
 router.post("/formdata", async (req, res) => {
   console.log("POST /formdata route hit");
+
   const session = await UserModel.startSession();
   session.startTransaction();
+
   try {
-    const { senderPhoneNumber, message, time, recieverPhoneNumber, deviceId } = req.body;
-    console.log("Request body for /formdata:", req.body);
-
-    // Basic validation
-    if (!senderPhoneNumber || !message || !time || !recieverPhoneNumber || !deviceId) {
-      console.log("Missing field(s) in /formdata:", {
-        senderPhoneNumber,
-        message,
-        time,
-        recieverPhoneNumber,
-        deviceId
-      });
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
-    // Check if recieverPhoneNumber exists in UserModel; if not, add it
-    const existingUser = await UserModel.findOne({ deviceId: deviceId }).session(session);
-    if (!existingUser) {
-      const newUser = new UserModel({ deviceId: deviceId });
-      await newUser.save({ session });
-      console.log("User added to UserModel with deviceId:", deviceId);
-    }
-
-    const formData = new FormDataModel({
+    const {
       senderPhoneNumber,
       message,
       time,
-      recieverPhoneNumber,
-      deviceId,
-    });
-    console.log("New FormDataModel created:", formData);
+      receiverPhoneNumber, // fixed spelling
+      deviceId
+    } = req.body;
+
+    console.log("Request body for /formdata:", req.body);
+
+    // Required fields validation (receiverPhoneNumber is optional)
+    if (!senderPhoneNumber || !message || !time || !deviceId) {
+      await session.abortTransaction();
+      session.endSession();
+
+      return res.status(400).json({
+        message: "senderPhoneNumber, message, time, and deviceId are required"
+      });
+    }
+
+    // Check if user exists, otherwise create
+    let existingUser = await UserModel.findOne({ deviceId }).session(session);
+
+    if (!existingUser) {
+      existingUser = new UserModel({ deviceId });
+      await existingUser.save({ session });
+      console.log("User added with deviceId:", deviceId);
+    }
+
+    // Build form data object dynamically
+    const formDataObj = {
+      senderPhoneNumber,
+      message,
+      time,
+      deviceId
+    };
+
+    // Only add receiverPhoneNumber if provided
+    if (receiverPhoneNumber) {
+      formDataObj.receiverPhoneNumber = receiverPhoneNumber;
+    }
+
+    const formData = new FormDataModel(formDataObj);
 
     await formData.save({ session });
-    console.log("Form data saved to DB:", formData);
 
     await session.commitTransaction();
     session.endSession();
 
-    res.status(201).json({
+    console.log("Form data saved:", formData);
+
+    return res.status(201).json({
       message: "Form data saved successfully",
-      data: formData,
+      data: formData
     });
-    console.log("Response sent for /formdata success.");
+
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    console.log("Error in /formdata:", error);
-    res
-      .status(500)
-      .json({ message: "Error saving form data", error: error.message });
+
+    console.error("Error in /formdata:", error);
+
+    return res.status(500).json({
+      message: "Error saving form data",
+      error: error.message
+    });
   }
 });
+
 
 router.post("/save-multi-message", async (req, res) => {
   const session = await UserModel.startSession();
